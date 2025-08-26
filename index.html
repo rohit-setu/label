@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Transactions Viewer</title>
+  <style>
+    :root { --gap:8px; --ui-bg:#fff; --muted:#666; --panel-border:#ddd; }
+    html,body { height:100%; margin:0; font-family:Inter, Roboto, Arial, Helvetica, sans-serif; background:#f7f8fa; color:#111; }
+    .wrap { max-width:1200px; margin:12px auto; padding:12px; }
+    .controls { display:flex; gap:var(--gap); align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+    .controls input, .controls button { padding:6px 8px; font-size:13px; border:1px solid #cfcfcf; border-radius:6px; }
+    .panel { background:var(--ui-bg); border:1px solid var(--panel-border); padding:8px; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+    .panel .meta { display:flex; gap:12px; align-items:center; margin-bottom:8px; color:var(--muted); font-size:13px; }
+    .panel .meta .status { margin-left:auto; }
+    .table-wrap { max-height:62vh; overflow:auto; border-top:1px solid #eee; padding-top:6px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #f1f1f1; vertical-align:top; }
+    th.narration, td.narration { width:48%; }
+    @media (max-width:900px) { th.narration, td.narration { width:40%; } }
+    .muted { color:var(--muted); }
+    .error { color:#b00020; font-weight:600; }
+    .btn { cursor:pointer; background:#007bff; color:#fff; border-color:transparent; }
+    .btn.ghost { background:transparent; color:#333; border:1px solid #ddd; }
+    .small { font-size:12px; padding:4px 8px; }
+    #loader { display:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2 style="margin:0 0 10px 0">Transactions Viewer</h2>
+
+    <div class="controls">
+      <input id="q" placeholder="Global search (text across all columns)" style="width:260px" />
+      <input id="minAmt" placeholder="Min amount" style="width:110px" />
+      <input id="maxAmt" placeholder="Max amount" style="width:110px" />
+      <button id="clear" class="btn ghost small">Clear filters</button>
+      <button id="download" class="btn small" title="Download visible rows as JSON">Download JSON</button>
+      <div style="margin-left:auto; color:#666; font-size:13px">
+        Task: <span id="taskId" class="muted">—</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="meta">
+        <div id="summary" class="muted">No data loaded</div>
+        <div class="status">Rows: <strong id="cnt">0</strong></div>
+      </div>
+
+      <div id="loader" class="muted">Loading...</div>
+      <div id="error" class="error" role="alert" style="display:none"></div>
+
+      <div class="table-wrap" id="tableWrap" style="display:none">
+        <table id="tbl" aria-describedby="Transactions table">
+          <thead>
+            <tr>
+              <th>amount</th>
+              <th>currentBalance</th>
+              <th>mode</th>
+              <th class="narration">narration</th>
+              <th>reference</th>
+              <th>transactionTimestamp</th>
+              <th>txnId</th>
+              <th>type</th>
+              <th>valueDate</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    // Utility
+    function qsel(id){ return document.getElementById(id); }
+    function getParam(name){
+      const params = new URLSearchParams(location.search);
+      return params.get(name);
+    }
+
+    // DOM refs
+    const qEl = qsel('q'), minEl = qsel('minAmt'), maxEl = qsel('maxAmt');
+    const cntEl = qsel('cnt'), tbody = qsel('tbody'), tableWrap = qsel('tableWrap');
+    const loader = qsel('loader'), errorEl = qsel('error'), summaryEl = qsel('summary'), taskIdEl = qsel('taskId');
+    const clearBtn = qsel('clear'), downloadBtn = qsel('download');
+
+    let transactions = []; // full array
+    let visibleRows = []; // indices visible after filtering
+
+    function showLoading(on){
+      loader.style.display = on ? 'block' : 'none';
+    }
+    function showError(msg){
+      errorEl.style.display = msg ? 'block' : 'none';
+      errorEl.textContent = msg || '';
+    }
+
+    function parseNum(s){
+      if (s === null || s === undefined) return null;
+      const n = parseFloat(String(s).replace(/[^0-9.\-]/g,''));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function renderRows(){
+      tbody.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      transactions.forEach((tx, i) => {
+        const tr = document.createElement('tr');
+        function addCell(text, cls){
+          const td = document.createElement('td');
+          if (cls) td.className = cls;
+          // use textContent to avoid injecting HTML
+          td.textContent = text != null ? String(text) : '';
+          tr.appendChild(td);
+        }
+        addCell(tx.amount);
+        addCell(tx.currentBalance);
+        addCell(tx.mode);
+        addCell(tx.narration, 'narration');
+        addCell(tx.reference);
+        addCell(tx.transactionTimestamp);
+        addCell(tx.txnId);
+        addCell(tx.type);
+        addCell(tx.valueDate);
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+      cntEl.textContent = transactions.length;
+    }
+
+    function updateSummary(){
+      const total = transactions.length;
+      let totalCredit = 0, totalDebit = 0;
+      transactions.forEach(tx => {
+        const a = parseNum(tx.amount);
+        if (a == null) return;
+        // assume type or sign indicates credit/debit; adjust if needed
+        if (String(tx.type || '').toLowerCase().includes('credit')) totalCredit += a;
+        else if (String(tx.type || '').toLowerCase().includes('debit')) totalDebit += a;
+      });
+      summaryEl.textContent = `Total rows: ${total} · total_credit: ${totalCredit} · total_debit: ${totalDebit}`;
+    }
+
+    function filterTable(){
+      const q = (qEl.value || '').trim().toLowerCase();
+      const min = parseNum(minEl.value);
+      const max = parseNum(maxEl.value);
+      const rows = tbody.querySelectorAll('tr');
+      let cnt = 0;
+      rows.forEach((r, idx) => {
+        const text = r.innerText.toLowerCase();
+        const a = parseNum(r.cells[0].innerText);
+        let ok = true;
+        if (q && text.indexOf(q) === -1) ok = false;
+        if (min !== null && (a === null || a < min)) ok = false;
+        if (max !== null && (a === null || a > max)) ok = false;
+        r.style.display = ok ? '' : 'none';
+        if (ok) cnt++;
+      });
+      cntEl.textContent = cnt;
+    }
+
+    // download currently visible rows as JSON
+    function downloadVisible(){
+      const rows = [];
+      const trs = tbody.querySelectorAll('tr');
+      trs.forEach(r => {
+        if (r.style.display === 'none') return;
+        const cells = Array.from(r.cells).map(c => c.textContent);
+        // map back to column names
+        rows.push({
+          amount: cells[0],
+          currentBalance: cells[1],
+          mode: cells[2],
+          narration: cells[3],
+          reference: cells[4],
+          transactionTimestamp: cells[5],
+          txnId: cells[6],
+          type: cells[7],
+          valueDate: cells[8]
+        });
+      });
+      const blob = new Blob([JSON.stringify(rows, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const tid = getParam('task') || 'data';
+      a.download = `transactions_${tid}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Fetch logic: prefer ?dataUrl=... else ?task=ID -> /tasks/ID.json relative to current origin
+    async function fetchTask(){
+      showError('');
+      showLoading(true);
+      tableWrap.style.display = 'none';
+      const dataUrl = getParam('dataUrl');
+      const task = getParam('task');
+      let url;
+      if (dataUrl) {
+        url = dataUrl;
+        taskIdEl.textContent = 'dataUrl';
+      } else if (task) {
+        // same-origin path: /tasks/<task>.json
+        const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/'); // repo base
+        // if index.html is at /viewer/index.html then base ends with /viewer/
+        url = base + 'tasks/' + encodeURIComponent(task) + '.json';
+        taskIdEl.textContent = task;
+      } else {
+        showLoading(false);
+        showError('No ?task=<id> or ?dataUrl=<url> provided in the URL.');
+        return;
+      }
+
+      try {
+        const resp = await fetch(url, {credentials: 'same-origin'});
+        if (!resp.ok) throw new Error('Fetch failed: ' + resp.status + ' ' + resp.statusText);
+        const body = await resp.json();
+        // accept either { transactions: [...] } or [...] directly
+        transactions = Array.isArray(body) ? body : (body.transactions || body.data || []);
+        if (!Array.isArray(transactions)) throw new Error('Invalid JSON: transactions array not found');
+        renderRows();
+        updateSummary();
+        tableWrap.style.display = '';
+        filterTable(); // apply initial filter state
+        showLoading(false);
+      } catch(err) {
+        showLoading(false);
+        showError('Unable to load data: ' + err.message);
+        console.error(err);
+      }
+    }
+
+    // wire events
+    document.addEventListener('DOMContentLoaded', function(){
+      qEl.addEventListener('input', filterTable);
+      minEl.addEventListener('input', filterTable);
+      maxEl.addEventListener('input', filterTable);
+      clearBtn.addEventListener('click', function(){ qEl.value=''; minEl.value=''; maxEl.value=''; filterTable(); });
+      downloadBtn.addEventListener('click', downloadVisible);
+      fetchTask();
+    });
+  })();
+  </script>
+</body>
+</html>

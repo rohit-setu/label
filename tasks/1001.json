@@ -1,0 +1,104 @@
+{
+   "task_id":"1001",
+   "transactions":[
+      {
+         "amount":"15001",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"CMS/ARUNKUMAR/202002054893133 sharekhan8",
+         "reference":"15",
+         "transactionTimestamp":"2021-09-01T00:50:05+05:30",
+         "txnId":"11",
+         "type":"CREDIT",
+         "valueDate":"2021-09-01"
+      },
+      {
+         "amount":"15001",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"SALARY6",
+         "reference":"26",
+         "transactionTimestamp":"2021-10-02T23:59:59+05:30",
+         "txnId":"212",
+         "type":"CREDIT",
+         "valueDate":"2021-10-02"
+      },
+      {
+         "amount":"100",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-05T00:50:05+05:30",
+         "txnId":"213",
+         "type":"CREDIT",
+         "valueDate":"2021-10-05"
+      },
+      {
+         "amount":"2000",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-05T00:50:06+05:30",
+         "txnId":"224",
+         "type":"CREDIT",
+         "valueDate":"2021-10-05"
+      },
+      {
+         "amount":"3000",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-05T00:50:07+05:30",
+         "txnId":"223",
+         "type":"CREDIT",
+         "valueDate":"2021-10-05"
+      },
+      {
+         "amount":"4000",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-05T00:50:08+05:30",
+         "txnId":"222",
+         "type":"CREDIT",
+         "valueDate":"2021-10-05"
+      },
+      {
+         "amount":"9000",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-05T00:50:09+05:30",
+         "txnId":"221",
+         "type":"CREDIT",
+         "valueDate":"2021-10-05"
+      },
+      {
+         "amount":"6000",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-06T00:50:05+05:30",
+         "txnId":"220",
+         "type":"CREDIT",
+         "valueDate":"2021-10-06"
+      },
+      {
+         "amount":"5080",
+         "currentBalance":"20000",
+         "mode":"OTHERS",
+         "narration":"taksons trading6",
+         "reference":"27",
+         "transactionTimestamp":"2021-10-07T00:50:05+05:30",
+         "txnId":"219",
+         "type":"CREDIT",
+         "valueDate":"2021-10-07"
+      }
+   ]
+}
